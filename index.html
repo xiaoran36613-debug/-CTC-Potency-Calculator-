@@ -278,10 +278,6 @@
             font-size: 16px;
         }
 
-        .preset-section {
-            margin-bottom: 16px;
-        }
-
         .preset-list {
             display: flex;
             flex-direction: column;
@@ -490,7 +486,7 @@
 
         .clear-history button {
             background: none;
-            border: none;
+            border: border: none;
             color: var(--text-hint);
             font-size: 11px;
             cursor: pointer;
@@ -559,6 +555,16 @@
             background: var(--result-primary-bg);
             color: white;
         }
+
+        .adjust-hint {
+            font-size: 11px;
+            color: var(--text-hint);
+            margin-top: 4px;
+            font-style: italic;
+        }
+
+        .adjust-hint .odd { color: var(--primary); font-weight: 600; }
+        .adjust-hint .even { color: var(--text-secondary); }
     </style>
 </head>
 <body data-theme="blue">
@@ -593,7 +599,11 @@
             <div class="input-group">
                 <label for="absorbance">吸光度 (A)</label>
                 <input type="number" id="absorbance" placeholder="如 0.125" step="0.001" min="0">
-                <div class="hint">精确到3位小数，自动 +0.001 计算</div>
+                <div class="hint">精确到3位小数</div>
+                <div class="adjust-hint">
+                    <span class="odd">末尾为奇数 → 自动 +0.001</span> | 
+                    <span class="even">末尾为偶数 → 不调整</span>
+                </div>
             </div>
 
             <div class="input-group">
@@ -619,8 +629,12 @@
         <div class="tab-content" id="tab-batch">
             <div class="input-group">
                 <label for="batchAbsorbance">吸光度列表（每行一个）</label>
-                <textarea id="batchAbsorbance" placeholder="0.125&#10;0.156&#10;0.198&#10;..."></textarea>
+                <textarea id="batchAbsorbance" placeholder="0.234&#10;0.330&#10;0.302&#10;0.301"></textarea>
                 <div class="hint">每行输入一个A值，精确到3位小数</div>
+                <div class="adjust-hint">
+                    <span class="odd">末尾为奇数 → 自动 +0.001</span> | 
+                    <span class="even">末尾为偶数 → 不调整</span>
+                </div>
             </div>
 
             <div class="input-group">
@@ -638,6 +652,7 @@
                                 <th>序号</th>
                                 <th>原始A值</th>
                                 <th>调整后A值</th>
+                                <th>调整说明</th>
                                 <th>单位</th>
                                 <th>实际效价</th>
                             </tr>
@@ -681,243 +696,3 @@
     </div>
 
     <script>
-        let currentPresetId = 'default';
-        let batchData = [];
-        let presets = JSON.parse(localStorage.getItem('ctcPresets')) || [
-            { id: 'default', name: '默认标曲', coef: 3240.2, const: -12.8, isDefault: true }
-        ];
-        let history = JSON.parse(localStorage.getItem('ctcHistory')) || [];
-        let currentTheme = localStorage.getItem('ctcTheme') || 'blue';
-
-        document.addEventListener('DOMContentLoaded', () => {
-            setTheme(currentTheme, false);
-            renderPresets();
-            renderHistory();
-            updateFormulaDisplay();
-        });
-
-        function setTheme(theme, save = true) {
-            document.body.setAttribute('data-theme', theme);
-            document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelector(`.theme-btn.${theme}`).classList.add('active');
-            if (save) {
-                currentTheme = theme;
-                localStorage.setItem('ctcTheme', theme);
-            }
-        }
-
-        function switchTab(tab) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
-            document.getElementById(`tab-${tab}`).classList.add('active');
-        }
-
-        function renderPresets() {
-            const list = document.getElementById('presetList');
-            list.innerHTML = presets.map(p => `
-                <div class="preset-item ${p.id === currentPresetId ? 'active' : ''}" onclick="selectPreset('${p.id}')">
-                    <div>
-                        <div class="preset-info">${p.name} ${p.isDefault ? '(默认)' : ''}</div>
-                        <div class="preset-formula">单位 = ${p.coef} × A ${p.const >= 0 ? '+' : '−'} ${Math.abs(p.const)}</div>
-                    </div>
-                    ${!p.isDefault ? `
-                    <div class="preset-actions">
-                        <button onclick="event.stopPropagation(); deletePreset('${p.id}')">🗑️</button>
-                    </div>` : ''}
-                </div>
-            `).join('');
-        }
-
-        function selectPreset(id) {
-            currentPresetId = id;
-            renderPresets();
-            updateFormulaDisplay();
-        }
-
-        function updateFormulaDisplay() {
-            const p = presets.find(pr => pr.id === currentPresetId) || presets[0];
-            const sign = p.const >= 0 ? '+' : '−';
-            document.getElementById('formulaText').textContent =
-                `单位 = ${p.coef} × A ${sign} ${Math.abs(p.const)}`;
-        }
-
-        function openPresetModal() {
-            document.getElementById('presetModal').classList.add('show');
-            document.getElementById('presetName').value = '';
-            document.getElementById('presetName').focus();
-        }
-
-        function closePresetModal() {
-            document.getElementById('presetModal').classList.remove('show');
-        }
-
-        function savePreset() {
-            const name = document.getElementById('presetName').value.trim();
-            const coef = parseFloat(document.getElementById('presetCoef').value);
-            const cons = parseFloat(document.getElementById('presetConst').value);
-
-            if (!name) { alert('请输入预设名称'); return; }
-            if (isNaN(coef) || isNaN(cons)) { alert('请输入有效的数字'); return; }
-
-            const id = 'preset_' + Date.now();
-            presets.push({ id, name, coef, const: cons });
-            localStorage.setItem('ctcPresets', JSON.stringify(presets));
-
-            currentPresetId = id;
-            renderPresets();
-            updateFormulaDisplay();
-            closePresetModal();
-        }
-
-        function deletePreset(id) {
-            if (!confirm('确定删除此预设？')) return;
-            presets = presets.filter(p => p.id !== id);
-            if (currentPresetId === id) currentPresetId = 'default';
-            localStorage.setItem('ctcPresets', JSON.stringify(presets));
-            renderPresets();
-            updateFormulaDisplay();
-        }
-
-        function getCurrentFormula() {
-            return presets.find(p => p.id === currentPresetId) || presets[0];
-        }
-
-        function calculateSingle() {
-            const aInput = document.getElementById('absorbance').value;
-            const dilution = parseFloat(document.getElementById('dilution').value) || 21.0;
-            const formula = getCurrentFormula();
-
-            if (!aInput || isNaN(parseFloat(aInput))) {
-                alert('请输入有效的吸光度值');
-                return;
-            }
-
-            const result = doCalculation(parseFloat(aInput), dilution, formula);
-
-            document.getElementById('unitValue').textContent = result.unit.toFixed(2);
-            document.getElementById('potencyValue').textContent = result.potency.toFixed(2);
-            document.getElementById('singleResults').classList.add('show');
-
-            addToHistory(result);
-        }
-
-        function calculateBatch() {
-            const input = document.getElementById('batchAbsorbance').value.trim();
-            const dilution = parseFloat(document.getElementById('batchDilution').value) || 21.0;
-            const formula = getCurrentFormula();
-
-            if (!input) { alert('请输入吸光度值'); return; }
-
-            const lines = input.split('\n').map(l => l.trim()).filter(l => l);
-            batchData = [];
-
-            lines.forEach((line, idx) => {
-                const a = parseFloat(line);
-                if (!isNaN(a)) {
-                    batchData.push({
-                        idx: idx + 1,
-                        originalA: a,
-                        ...doCalculation(a, dilution, formula)
-                    });
-                }
-            });
-
-            renderBatchTable();
-            document.getElementById('batchResults').classList.add('show');
-        }
-
-        function doCalculation(a, dilution, formula) {
-            const adjustedA = a + 0.001;
-            const unit = formula.coef * adjustedA + formula.const;
-            const potency = unit * dilution;
-            return { originalA: a, adjustedA, unit, potency, dilution };
-        }
-
-        function renderBatchTable() {
-            const tbody = document.getElementById('batchTableBody');
-            tbody.innerHTML = batchData.map(r => `
-                <tr>
-                    <td>${r.idx}</td>
-                    <td>${r.originalA.toFixed(3)}</td>
-                    <td>${r.adjustedA.toFixed(3)}</td>
-                    <td>${r.unit.toFixed(2)}</td>
-                    <td><strong>${r.potency.toFixed(2)}</strong></td>
-                </tr>
-            `).join('');
-        }
-
-        function exportToExcel() {
-            if (batchData.length === 0) { alert('请先进行批量计算'); return; }
-
-            const formula = getCurrentFormula();
-            const wsData = [
-                ['金霉素效价计算结果'],
-                [''],
-                ['公式', `单位 = ${formula.coef} × A + (${formula.const})`],
-                ['稀释倍数', batchData[0].dilution],
-                [''],
-                ['序号', '原始A值', '调整后A值', '单位 (u/mL)', '实际效价 (u/mL)']
-            ];
-
-            batchData.forEach(r => {
-                wsData.push([r.idx, r.originalA, r.adjustedA, r.unit.toFixed(2), r.potency.toFixed(2)]);
-            });
-
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            ws['!cols'] = [{wch:8}, {wch:12}, {wch:12}, {wch:14}, {wch:16}];
-
-            XLSX.utils.book_append_sheet(wb, ws, '计算结果');
-            XLSX.writeFile(wb, `CTC_效价计算结果_${new Date().toISOString().slice(0,10)}.xlsx`);
-        }
-
-        function addToHistory(result) {
-            const formula = getCurrentFormula();
-            const record = {
-                time: new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'}),
-                a: result.originalA.toFixed(3),
-                adjustedA: result.adjustedA.toFixed(3),
-                dilution: result.dilution,
-                unit: result.unit.toFixed(2),
-                potency: result.potency.toFixed(2),
-                formulaName: formula.name
-            };
-            history.unshift(record);
-            if (history.length > 20) history.pop();
-            localStorage.setItem('ctcHistory', JSON.stringify(history));
-            renderHistory();
-        }
-
-        function renderHistory() {
-            const section = document.getElementById('historySection');
-            const list = document.getElementById('historyList');
-            if (history.length === 0) { section.style.display = 'none'; return; }
-
-            section.style.display = 'block';
-            list.innerHTML = history.map(item => `
-                <div class="history-item">
-                    <span class="time">${item.time}</span>
-                    <span class="data">
-                        A=${item.a}→${item.adjustedA} | ${item.formulaName} | <strong>${item.potency}</strong> u/mL
-                    </span>
-                </div>
-            `).join('');
-        }
-
-        function clearHistory() {
-            history = [];
-            localStorage.removeItem('ctcHistory');
-            renderHistory();
-        }
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closePresetModal();
-        });
-
-        document.getElementById('absorbance').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') calculateSingle();
-        });
-    </script>
-</body>
-</html>
