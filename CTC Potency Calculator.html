@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CTC Potency Calculator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #2196f3;
+            --primary-dark: #1565c0;
+            --primary-light: #e3f2fd;
+            --bg-gradient-start: #e3f2fd;
+            --bg-gradient-end: #f5f9ff;
+            --card-bg: white;
+            --text-primary: #212121;
+            --text-secondary: #616161;
+            --text-hint: #9e9e9e;
+            --border: #e3f2fd;
+            --shadow: rgba(33, 150, 243, 0.15);
+            --result-bg: linear-gradient(135deg, #e3f2fd 0%, #f5f9ff 100%);
+            --result-primary-bg: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+            --input-bg: #fafafa;
+            --history-bg: #fafafa;
+        }
+
+        [data-theme="pink"] {
+            --primary: #e91e63;
+            --primary-dark: #c2185b;
+            --primary-light: #fce4ec;
+            --bg-gradient-start: #fce4ec;
+            --bg-gradient-end: #fff5f7;
+            --card-bg: white;
+            --border: #f8bbd0;
+            --shadow: rgba(233, 30, 99, 0.15);
+            --result-bg: linear-gradient(135deg, #fce4ec 0%, #fff5f7 100%);
+            --result-primary-bg: linear-gradient(135deg, #e91e63 0%, #c2185b 100%);
+            --input-bg: #fffafa;
+            --history-bg: #fffafa;
+        }
+
+        [data-theme="dark"] {
+            --primary: #90caf9;
+            --primary-dark: #64b5f6;
+            --primary-light: #1e3a5f;
+            --bg-gradient-start: #0d1b2a;
+            --bg-gradient-end: #1b2838;
+            --card-bg: #1e293b;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-hint: #64748b;
+            --border: #334155;
+            --shadow: rgba(0, 0, 0, 0.3);
+            --result-bg: linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%);
+            --result-primary-bg: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            --input-bg: #0f172a;
+            --history-bg: #0f172a;
+        }
+
+        [data-theme="white"] {
+            --primary: #424242;
+            --primary-dark: #212121;
+            --primary-light: #f5f5f5;
+            --bg-gradient-start: #f5f5f5;
+            --bg-gradient-end: #ffffff;
+            --card-bg: white;
+            --text-primary: #212121;
+            --text-secondary: #616161;
+            --text-hint: #9e9e9e;
+            --border: #e0e0e0;
+            --shadow: rgba(0, 0, 0, 0.08);
+            --result-bg: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);
+            --result-primary-bg: linear-gradient(135deg, #616161 0%, #424242 100%);
+            --input-bg: #fafafa;
+            --history-bg: #fafafa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            color: var(--text-primary);
+        }
+
+        .container {
+            background: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: 0 10px 40px var(--shadow);
+            width: 100%;
+            max-width: 520px;
+            padding: 28px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: var(--primary-dark);
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .header .subtitle {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .theme-switcher {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .theme-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .theme-btn:hover { transform: scale(1.15); }
+        .theme-btn.active { border-color: var(--primary-dark); box-shadow: 0 0 0 2px var(--card-bg), 0 0 0 4px var(--primary); }
+
+        .theme-btn.blue { background: linear-gradient(135deg, #2196f3, #1976d2); }
+        .theme-btn.pink { background: linear-gradient(135deg, #e91e63, #c2185b); }
+        .theme-btn.dark { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid #334155; }
+        .theme-btn.white { background: linear-gradient(135deg, #f5f5f5, #e0e0e0); border: 1px solid #bdbdbd; }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            background: var(--primary-light);
+            border-radius: 12px;
+            padding: 4px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: var(--card-bg);
+            color: var(--primary-dark);
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group label {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+
+        .input-group input,
+        .input-group textarea,
+        .input-group select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 15px;
+            color: var(--text-primary);
+            background: var(--input-bg);
+            transition: all 0.3s;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .input-group input:focus,
+        .input-group textarea:focus,
+        .input-group select:focus {
+            border-color: var(--primary);
+            background: var(--card-bg);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .input-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .input-group .hint {
+            font-size: 11px;
+            color: var(--text-hint);
+            margin-top: 4px;
+        }
+
+        .formula-section {
+            background: var(--primary-light);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .formula-section .section-title {
+            color: var(--primary-dark);
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .formula-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .formula-row span {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .formula-row input {
+            width: 90px;
+            padding: 8px 10px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+            background: var(--card-bg);
+            outline: none;
+            color: var(--text-primary);
+        }
+
+        .formula-row input:focus {
+            border-color: var(--primary);
+        }
+
+        .formula-display {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+            border: 1px dashed var(--border);
+        }
+
+        .formula-display .formula-text {
+            color: var(--primary-dark);
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .preset-section {
+            margin-bottom: 16px;
+        }
+
+        .preset-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .preset-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: var(--input-bg);
+            border-radius: 10px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .preset-item:hover { border-color: var(--border); }
+        .preset-item.active {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .preset-item .preset-info {
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+
+        .preset-item .preset-formula {
+            font-size: 11px;
+            color: var(--text-hint);
+            margin-top: 2px;
+        }
+
+        .preset-item .preset-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .preset-item button {
+            background: none;
+            border: none;
+            color: var(--text-hint);
+            font-size: 12px;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .preset-item button:hover { color: var(--primary); }
+
+        .btn-add-preset {
+            width: 100%;
+            padding: 10px;
+            background: var(--primary-light);
+            border: 2px dashed var(--border);
+            border-radius: 10px;
+            color: var(--primary-dark);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-add-preset:hover {
+            border-color: var(--primary);
+            background: var(--card-bg);
+        }
+
+        .btn-calculate,
+        .btn-export {
+            width: 100%;
+            padding: 14px;
+            background: var(--result-primary-bg);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 15px var(--shadow);
+        }
+
+        .btn-calculate:hover,
+        .btn-export:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--shadow);
+        }
+
+        .btn-export {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            margin-bottom: 0;
+            margin-top: 12px;
+        }
+
+        .results { display: none; }
+        .results.show { display: block; animation: fadeIn 0.4s ease; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-card {
+            background: var(--result-bg);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .result-card .result-label {
+            color: var(--text-secondary);
+            font-size: 12px;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .result-card .result-value {
+            color: var(--primary-dark);
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .result-card .result-unit {
+            color: var(--text-hint);
+            font-size: 13px;
+            margin-left: 4px;
+        }
+
+        .result-card.primary {
+            background: var(--result-primary-bg);
+            border: none;
+        }
+
+        .result-card.primary .result-label { color: rgba(255,255,255,0.8); }
+        .result-card.primary .result-value { color: white; }
+        .result-card.primary .result-unit { color: rgba(255,255,255,0.7); }
+
+        .batch-table-container {
+            overflow-x: auto;
+            margin-bottom: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .batch-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .batch-table th {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .batch-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        .batch-table tr:last-child td { border-bottom: none; }
+        .batch-table tr:hover td { background: var(--primary-light); }
+
+        .history-section {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .history-section h3 {
+            color: var(--primary-dark);
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: var(--history-bg);
+            border-radius: 10px;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .history-item .time { color: var(--text-hint); }
+        .history-item .data { color: var(--text-secondary); }
+        .history-item .data strong { color: var(--primary-dark); }
+
+        .clear-history {
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        .clear-history button {
+            background: none;
+            border: none;
+            color: var(--text-hint);
+            font-size: 11px;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .clear-history button:hover { color: #f44336; }
+
+        .footer {
+            text-align: center;
+            margin-top: 16px;
+            color: var(--text-hint);
+            font-size: 11px;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal h3 {
+            color: var(--primary-dark);
+            margin-bottom: 16px;
+            font-size: 18px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .modal-buttons .btn-cancel {
+            background: var(--input-bg);
+            color: var(--text-secondary);
+        }
+
+        .modal-buttons .btn-save {
+            background: var(--result-primary-bg);
+            color: white;
+        }
+    </style>
+</head>
+<body data-theme="blue">
+    <div class="container">
+        <div class="header">
+            <h1>🧪 CTC Potency Calculator</h1>
+            <div class="subtitle">金霉素效价计算器</div>
+        </div>
+
+        <div class="theme-switcher">
+            <div class="theme-btn blue active" onclick="setTheme('blue')" title="蓝色"></div>
+            <div class="theme-btn pink" onclick="setTheme('pink')" title="粉色"></div>
+            <div class="theme-btn dark" onclick="setTheme('dark')" title="深色"></div>
+            <div class="theme-btn white" onclick="setTheme('white')" title="白色"></div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('single')">单值计算</button>
+            <button class="tab" onclick="switchTab('batch')">批量计算</button>
+        </div>
+
+        <div class="formula-section">
+            <div class="section-title">⚙️ 标曲公式预设</div>
+            <div class="preset-list" id="presetList"></div>
+            <button class="btn-add-preset" onclick="openPresetModal()">+ 添加新预设</button>
+            <div class="formula-display" style="margin-top:10px;">
+                当前公式：<span class="formula-text" id="formulaText">单位 = 3240.2 × A − 12.8</span>
+            </div>
+        </div>
+
+        <div class="tab-content active" id="tab-single">
+            <div class="input-group">
+                <label for="absorbance">吸光度 (A)</label>
+                <input type="number" id="absorbance" placeholder="如 0.125" step="0.001" min="0">
+                <div class="hint">精确到3位小数，自动 +0.001 计算</div>
+            </div>
+
+            <div class="input-group">
+                <label for="dilution">稀释倍数</label>
+                <input type="number" id="dilution" value="21.0" step="0.1" min="0.1">
+                <div class="hint">默认 21.0</div>
+            </div>
+
+            <button class="btn-calculate" onclick="calculateSingle()">计算效价</button>
+
+            <div class="results" id="singleResults">
+                <div class="result-card">
+                    <div class="result-label">单位（相对值）</div>
+                    <div><span class="result-value" id="unitValue">--</span><span class="result-unit">u/mL</span></div>
+                </div>
+                <div class="result-card primary">
+                    <div class="result-label">实际效价</div>
+                    <div><span class="result-value" id="potencyValue">--</span><span class="result-unit">u/mL</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="tab-batch">
+            <div class="input-group">
+                <label for="batchAbsorbance">吸光度列表（每行一个）</label>
+                <textarea id="batchAbsorbance" placeholder="0.125&#10;0.156&#10;0.198&#10;..."></textarea>
+                <div class="hint">每行输入一个A值，精确到3位小数</div>
+            </div>
+
+            <div class="input-group">
+                <label for="batchDilution">稀释倍数</label>
+                <input type="number" id="batchDilution" value="21.0" step="0.1" min="0.1">
+            </div>
+
+            <button class="btn-calculate" onclick="calculateBatch()">批量计算</button>
+
+            <div class="results" id="batchResults">
+                <div class="batch-table-container">
+                    <table class="batch-table">
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                <th>原始A值</th>
+                                <th>调整后A值</th>
+                                <th>单位</th>
+                                <th>实际效价</th>
+                            </tr>
+                        </thead>
+                        <tbody id="batchTableBody"></tbody>
+                    </table>
+                </div>
+                <button class="btn-export" onclick="exportToExcel()">📥 导出 Excel</button>
+            </div>
+        </div>
+
+        <div class="history-section" id="historySection" style="display:none;">
+            <h3>📋 计算记录</h3>
+            <div id="historyList"></div>
+            <div class="clear-history"><button onclick="clearHistory()">清空记录</button></div>
+        </div>
+
+        <div class="footer">标曲公式有效期到期后请及时更新</div>
+    </div>
+
+    <div class="modal-overlay" id="presetModal">
+        <div class="modal">
+            <h3>添加公式预设</h3>
+            <div class="input-group">
+                <label>预设名称</label>
+                <input type="text" id="presetName" placeholder="如：2024年6月标曲">
+            </div>
+            <div class="input-group">
+                <label>系数</label>
+                <input type="number" id="presetCoef" value="3240.2" step="0.1">
+            </div>
+            <div class="input-group">
+                <label>常数</label>
+                <input type="number" id="presetConst" value="-12.8" step="0.1">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closePresetModal()">取消</button>
+                <button class="btn-save" onclick="savePreset()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPresetId = 'default';
+        let batchData = [];
+        let presets = JSON.parse(localStorage.getItem('ctcPresets')) || [
+            { id: 'default', name: '默认标曲', coef: 3240.2, const: -12.8, isDefault: true }
+        ];
+        let history = JSON.parse(localStorage.getItem('ctcHistory')) || [];
+        let currentTheme = localStorage.getItem('ctcTheme') || 'blue';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setTheme(currentTheme, false);
+            renderPresets();
+            renderHistory();
+            updateFormulaDisplay();
+        });
+
+        function setTheme(theme, save = true) {
+            document.body.setAttribute('data-theme', theme);
+            document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`.theme-btn.${theme}`).classList.add('active');
+            if (save) {
+                currentTheme = theme;
+                localStorage.setItem('ctcTheme', theme);
+            }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+
+        function renderPresets() {
+            const list = document.getElementById('presetList');
+            list.innerHTML = presets.map(p => `
+                <div class="preset-item ${p.id === currentPresetId ? 'active' : ''}" onclick="selectPreset('${p.id}')">
+                    <div>
+                        <div class="preset-info">${p.name} ${p.isDefault ? '(默认)' : ''}</div>
+                        <div class="preset-formula">单位 = ${p.coef} × A ${p.const >= 0 ? '+' : '−'} ${Math.abs(p.const)}</div>
+                    </div>
+                    ${!p.isDefault ? `
+                    <div class="preset-actions">
+                        <button onclick="event.stopPropagation(); deletePreset('${p.id}')">🗑️</button>
+                    </div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function selectPreset(id) {
+            currentPresetId = id;
+            renderPresets();
+            updateFormulaDisplay();
+        }
+
+        function updateFormulaDisplay() {
+            const p = presets.find(pr => pr.id === currentPresetId) || presets[0];
+            const sign = p.const >= 0 ? '+' : '−';
+            document.getElementById('formulaText').textContent =
+                `单位 = ${p.coef} × A ${sign} ${Math.abs(p.const)}`;
+        }
+
+        function openPresetModal() {
+            document.getElementById('presetModal').classList.add('show');
+            document.getElementById('presetName').value = '';
+            document.getElementById('presetName').focus();
+        }
+
+        function closePresetModal() {
+            document.getElementById('presetModal').classList.remove('show');
+        }
+
+        function savePreset() {
+            const name = document.getElementById('presetName').value.trim();
+            const coef = parseFloat(document.getElementById('presetCoef').value);
+            const cons = parseFloat(document.getElementById('presetConst').value);
+
+            if (!name) { alert('请输入预设名称'); return; }
+            if (isNaN(coef) || isNaN(cons)) { alert('请输入有效的数字'); return; }
+
+            const id = 'preset_' + Date.now();
+            presets.push({ id, name, coef, const: cons });
+            localStorage.setItem('ctcPresets', JSON.stringify(presets));
+
+            currentPresetId = id;
+            renderPresets();
+            updateFormulaDisplay();
+            closePresetModal();
+        }
+
+        function deletePreset(id) {
+            if (!confirm('确定删除此预设？')) return;
+            presets = presets.filter(p => p.id !== id);
+            if (currentPresetId === id) currentPresetId = 'default';
+            localStorage.setItem('ctcPresets', JSON.stringify(presets));
+            renderPresets();
+            updateFormulaDisplay();
+        }
+
+        function getCurrentFormula() {
+            return presets.find(p => p.id === currentPresetId) || presets[0];
+        }
+
+        function calculateSingle() {
+            const aInput = document.getElementById('absorbance').value;
+            const dilution = parseFloat(document.getElementById('dilution').value) || 21.0;
+            const formula = getCurrentFormula();
+
+            if (!aInput || isNaN(parseFloat(aInput))) {
+                alert('请输入有效的吸光度值');
+                return;
+            }
+
+            const result = doCalculation(parseFloat(aInput), dilution, formula);
+
+            document.getElementById('unitValue').textContent = result.unit.toFixed(2);
+            document.getElementById('potencyValue').textContent = result.potency.toFixed(2);
+            document.getElementById('singleResults').classList.add('show');
+
+            addToHistory(result);
+        }
+
+        function calculateBatch() {
+            const input = document.getElementById('batchAbsorbance').value.trim();
+            const dilution = parseFloat(document.getElementById('batchDilution').value) || 21.0;
+            const formula = getCurrentFormula();
+
+            if (!input) { alert('请输入吸光度值'); return; }
+
+            const lines = input.split('\n').map(l => l.trim()).filter(l => l);
+            batchData = [];
+
+            lines.forEach((line, idx) => {
+                const a = parseFloat(line);
+                if (!isNaN(a)) {
+                    batchData.push({
+                        idx: idx + 1,
+                        originalA: a,
+                        ...doCalculation(a, dilution, formula)
+                    });
+                }
+            });
+
+            renderBatchTable();
+            document.getElementById('batchResults').classList.add('show');
+        }
+
+        function doCalculation(a, dilution, formula) {
+            const adjustedA = a + 0.001;
+            const unit = formula.coef * adjustedA + formula.const;
+            const potency = unit * dilution;
+            return { originalA: a, adjustedA, unit, potency, dilution };
+        }
+
+        function renderBatchTable() {
+            const tbody = document.getElementById('batchTableBody');
+            tbody.innerHTML = batchData.map(r => `
+                <tr>
+                    <td>${r.idx}</td>
+                    <td>${r.originalA.toFixed(3)}</td>
+                    <td>${r.adjustedA.toFixed(3)}</td>
+                    <td>${r.unit.toFixed(2)}</td>
+                    <td><strong>${r.potency.toFixed(2)}</strong></td>
+                </tr>
+            `).join('');
+        }
+
+        function exportToExcel() {
+            if (batchData.length === 0) { alert('请先进行批量计算'); return; }
+
+            const formula = getCurrentFormula();
+            const wsData = [
+                ['金霉素效价计算结果'],
+                [''],
+                ['公式', `单位 = ${formula.coef} × A + (${formula.const})`],
+                ['稀释倍数', batchData[0].dilution],
+                [''],
+                ['序号', '原始A值', '调整后A值', '单位 (u/mL)', '实际效价 (u/mL)']
+            ];
+
+            batchData.forEach(r => {
+                wsData.push([r.idx, r.originalA, r.adjustedA, r.unit.toFixed(2), r.potency.toFixed(2)]);
+            });
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            ws['!cols'] = [{wch:8}, {wch:12}, {wch:12}, {wch:14}, {wch:16}];
+
+            XLSX.utils.book_append_sheet(wb, ws, '计算结果');
+            XLSX.writeFile(wb, `CTC_效价计算结果_${new Date().toISOString().slice(0,10)}.xlsx`);
+        }
+
+        function addToHistory(result) {
+            const formula = getCurrentFormula();
+            const record = {
+                time: new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'}),
+                a: result.originalA.toFixed(3),
+                adjustedA: result.adjustedA.toFixed(3),
+                dilution: result.dilution,
+                unit: result.unit.toFixed(2),
+                potency: result.potency.toFixed(2),
+                formulaName: formula.name
+            };
+            history.unshift(record);
+            if (history.length > 20) history.pop();
+            localStorage.setItem('ctcHistory', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const section = document.getElementById('historySection');
+            const list = document.getElementById('historyList');
+            if (history.length === 0) { section.style.display = 'none'; return; }
+
+            section.style.display = 'block';
+            list.innerHTML = history.map(item => `
+                <div class="history-item">
+                    <span class="time">${item.time}</span>
+                    <span class="data">
+                        A=${item.a}→${item.adjustedA} | ${item.formulaName} | <strong>${item.potency}</strong> u/mL
+                    </span>
+                </div>
+            `).join('');
+        }
+
+        function clearHistory() {
+            history = [];
+            localStorage.removeItem('ctcHistory');
+            renderHistory();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closePresetModal();
+        });
+
+        document.getElementById('absorbance').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') calculateSingle();
+        });
+    </script>
+</body>
+</html>
