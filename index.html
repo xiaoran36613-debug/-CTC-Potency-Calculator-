@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>CTC Potency Calculator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -181,9 +181,8 @@
             margin-bottom: 6px;
         }
 
-        .input-group input,
-        .input-group textarea,
-        .input-group select {
+        .input-group input[type="number"],
+        .input-group textarea {
             width: 100%;
             padding: 12px 14px;
             border: 2px solid var(--border);
@@ -196,9 +195,8 @@
             font-family: inherit;
         }
 
-        .input-group input:focus,
-        .input-group textarea:focus,
-        .input-group select:focus {
+        .input-group input[type="number"]:focus,
+        .input-group textarea:focus {
             border-color: var(--primary);
             background: var(--card-bg);
             box-shadow: 0 0 0 3px var(--primary-light);
@@ -213,6 +211,130 @@
             font-size: 11px;
             color: var(--text-hint);
             margin-top: 4px;
+        }
+
+        /* ===== 稀释倍数选择框 ===== */
+        .dilution-select-wrapper {
+            position: relative;
+        }
+
+        .dilution-select {
+            width: 100%;
+            padding: 14px 40px 14px 14px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary-dark);
+            background: var(--input-bg);
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .dilution-select:active {
+            transform: scale(0.98);
+            border-color: var(--primary);
+        }
+
+        .dilution-select-arrow {
+            color: var(--primary);
+            font-size: 12px;
+            transition: transform 0.3s;
+        }
+
+        .dilution-select.open .dilution-select-arrow {
+            transform: rotate(180deg);
+        }
+
+        /* 底部弹窗 */
+        .select-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 200;
+            justify-content: center;
+            align-items: flex-end;
+            padding: 0;
+        }
+
+        .select-modal-overlay.show {
+            display: flex;
+        }
+
+        .select-modal {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 520px;
+            border-radius: 20px 20px 0 0;
+            padding: 20px 20px 30px;
+            max-height: 60vh;
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .select-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .select-modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .select-modal-close {
+            background: none;
+            border: none;
+            color: var(--text-hint);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+        }
+
+        .select-options {
+            overflow-y: auto;
+            flex: 1;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .select-option {
+            padding: 16px;
+            font-size: 18px;
+            color: var(--text-primary);
+            cursor: pointer;
+            border-radius: 12px;
+            transition: all 0.15s;
+            text-align: center;
+            margin-bottom: 4px;
+            border: 2px solid transparent;
+        }
+
+        .select-option:active {
+            transform: scale(0.97);
+            background: var(--primary-light);
+        }
+
+        .select-option.selected {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            font-weight: 700;
+            border-color: var(--primary);
         }
 
         .formula-section {
@@ -556,6 +678,7 @@
             color: white;
         }
     </style>
+<base target="_blank">
 </head>
 <body data-theme="blue">
     <div class="container">
@@ -585,6 +708,7 @@
             </div>
         </div>
 
+        <!-- 单值计算 -->
         <div class="tab-content active" id="tab-single">
             <div class="input-group">
                 <label for="absorbance">吸光度 (A)</label>
@@ -592,11 +716,18 @@
                 <div class="hint">精确到3位小数，直接输入测得的A值</div>
             </div>
 
+            <!-- 稀释倍数 - 点击直接选中的选择框 -->
             <div class="input-group">
-                <label for="dilution">稀释倍数</label>
-                <input type="number" id="dilution" value="21.0" step="0.1" min="0.1">
-                <div class="hint">默认 21.0</div>
+                <label>稀释倍数</label>
+                <div class="dilution-select-wrapper" onclick="openDilutionSelect('single')">
+                    <div class="dilution-select" id="dilutionDisplayBox">
+                        <span id="dilutionDisplayText">21.0</span>
+                        <span class="dilution-select-arrow">▼</span>
+                    </div>
+                </div>
+                <div class="hint">点击选择稀释倍数，范围 3.0 ~ 21.0</div>
             </div>
+            <input type="hidden" id="dilution" value="21.0">
 
             <button class="btn-calculate" onclick="calculateSingle()">计算效价</button>
 
@@ -612,17 +743,29 @@
             </div>
         </div>
 
+        <!-- 批量计算 -->
         <div class="tab-content" id="tab-batch">
             <div class="input-group">
                 <label for="batchAbsorbance">吸光度列表（每行一个）</label>
-                <textarea id="batchAbsorbance" placeholder="0.234&#10;0.330&#10;0.302&#10;0.301"></textarea>
+                <textarea id="batchAbsorbance" placeholder="0.234
+0.330
+0.302
+0.301"></textarea>
                 <div class="hint">每行输入一个A值，精确到3位小数</div>
             </div>
 
+            <!-- 批量稀释倍数 - 点击直接选中的选择框 -->
             <div class="input-group">
-                <label for="batchDilution">稀释倍数</label>
-                <input type="number" id="batchDilution" value="21.0" step="0.1" min="0.1">
+                <label>稀释倍数</label>
+                <div class="dilution-select-wrapper" onclick="openDilutionSelect('batch')">
+                    <div class="dilution-select" id="batchDilutionDisplayBox">
+                        <span id="batchDilutionDisplayText">21.0</span>
+                        <span class="dilution-select-arrow">▼</span>
+                    </div>
+                </div>
+                <div class="hint">点击选择稀释倍数，范围 3.0 ~ 21.0</div>
             </div>
+            <input type="hidden" id="batchDilution" value="21.0">
 
             <button class="btn-calculate" onclick="calculateBatch()">批量计算</button>
 
@@ -653,6 +796,7 @@
         <div class="footer">标曲公式有效期到期后请及时更新</div>
     </div>
 
+    <!-- 预设弹窗 -->
     <div class="modal-overlay" id="presetModal">
         <div class="modal">
             <h3>添加公式预设</h3>
@@ -675,9 +819,21 @@
         </div>
     </div>
 
+    <!-- 稀释倍数选择弹窗 - 点击直接选中并关闭 -->
+    <div class="select-modal-overlay" id="selectModal" onclick="closeSelectModal(event)">
+        <div class="select-modal" onclick="event.stopPropagation()">
+            <div class="select-modal-header">
+                <span class="select-modal-title">选择稀释倍数</span>
+                <button class="select-modal-close" onclick="closeSelectModal()">✕</button>
+            </div>
+            <div class="select-options" id="selectOptions"></div>
+        </div>
+    </div>
+
     <script>
         let currentPresetId = 'default';
         let batchData = [];
+        let currentSelectTarget = 'single';
 
         let presets = JSON.parse(localStorage.getItem('ctcPresets')) || [
             { id: 'default', name: '默认标曲', coef: 3240.2, const: -12.8, isDefault: true }
@@ -685,6 +841,12 @@
 
         let history = JSON.parse(localStorage.getItem('ctcHistory')) || [];
         let currentTheme = localStorage.getItem('ctcTheme') || 'blue';
+
+        // 生成稀释倍数选项 3.0 ~ 21.0，步长 0.5
+        const DILUTION_OPTIONS = [];
+        for (let v = 3.0; v <= 21.0; v += 0.5) {
+            DILUTION_OPTIONS.push(v.toFixed(1));
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             setTheme(currentTheme, false);
@@ -780,11 +942,64 @@
             return presets.find(p => p.id === currentPresetId) || presets[0];
         }
 
-        // 直接用输入的A值计算，不做任何调整
         function doCalculation(a, dilution, formula) {
             const unit = formula.coef * a + formula.const;
             const potency = unit * dilution;
             return { a, unit, potency, dilution };
+        }
+
+        // ===== 稀释倍数选择弹窗 - 点击直接选中并关闭 =====
+        function openDilutionSelect(target) {
+            currentSelectTarget = target;
+            const modal = document.getElementById('selectModal');
+            const optionsContainer = document.getElementById('selectOptions');
+
+            // 获取当前值
+            const currentValue = target === 'single' 
+                ? document.getElementById('dilution').value 
+                : document.getElementById('batchDilution').value;
+
+            // 渲染选项
+            optionsContainer.innerHTML = DILUTION_OPTIONS.map(val => `
+                <div class="select-option ${val === currentValue ? 'selected' : ''}" 
+                     onclick="selectDilutionValueAndClose('${val}')">
+                    ${val}
+                </div>
+            `).join('');
+
+            // 滚动到选中项
+            setTimeout(() => {
+                const selected = optionsContainer.querySelector('.selected');
+                if (selected) {
+                    selected.scrollIntoView({ block: 'center', behavior: 'instant' });
+                }
+            }, 50);
+
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        // 点击数字 → 直接选中并关闭弹窗
+        function selectDilutionValueAndClose(value) {
+            if (currentSelectTarget === 'single') {
+                document.getElementById('dilution').value = value;
+                document.getElementById('dilutionDisplayText').textContent = value;
+            } else {
+                document.getElementById('batchDilution').value = value;
+                document.getElementById('batchDilutionDisplayText').textContent = value;
+            }
+
+            // 直接关闭弹窗
+            closeSelectModal();
+        }
+
+        function closeSelectModal(event) {
+            // 如果点击的是选项，不处理（由选项自己的 onclick 处理）
+            if (event && event.target.classList.contains('select-option')) {
+                return;
+            }
+            document.getElementById('selectModal').classList.remove('show');
+            document.body.style.overflow = '';
         }
 
         function calculateSingle() {
@@ -847,11 +1062,12 @@
             if (batchData.length === 0) { alert('请先进行批量计算'); return; }
 
             const formula = getCurrentFormula();
+            const dilution = parseFloat(document.getElementById('batchDilution').value) || 21.0;
             const wsData = [
                 ['金霉素效价计算结果'],
                 [''],
                 ['公式', `单位 = ${formula.coef} × A + (${formula.const})`],
-                ['稀释倍数', batchData[0].dilution],
+                ['稀释倍数', dilution],
                 [''],
                 ['序号', 'A值', '单位 (u/mL)', '实际效价 (u/mL)']
             ];
@@ -907,7 +1123,10 @@
         }
 
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closePresetModal();
+            if (e.key === 'Escape') {
+                closePresetModal();
+                closeSelectModal();
+            }
         });
 
         document.getElementById('absorbance').addEventListener('keypress', (e) => {
