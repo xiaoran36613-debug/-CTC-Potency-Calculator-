@@ -1,0 +1,41 @@
+{
+    "name": "CTC Potency Calculator · 金霉素效价计算器",
+    "short_name": "CTC效价计算",
+    "description": "金霉素效价计算器：单值/批量计算、标曲公式预设、本地记录，支持离线使用，数据不上传。",
+    "id": "./",
+    "start_url": "./index.html",
+    "scope": "./",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "lang": "zh-CN",
+    "dir": "ltr",
+    "background_color": "#e3f2fd",
+    "theme_color": "#2196f3",
+    "categories": ["utilities", "productivity", "medical"],
+    "icons": [
+        {
+            "src": "icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
