@@ -2,8 +2,20 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>CTC Potency Calculator</title>
+
+    <!-- PWA 配置 -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#2196f3">
+    <link rel="icon" type="image/png" href="./icons/icon-192.png">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CTC效价计算">
+    <meta name="format-detection" content="telephone=no">
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
@@ -22,6 +34,7 @@
             --result-primary-bg: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
             --input-bg: #fafafa;
             --history-bg: #fafafa;
+            --app-bar-h: 56px;
         }
 
         [data-theme="pink"] {
@@ -77,15 +90,113 @@
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
+        html { -webkit-text-size-adjust: 100%; }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            background-attachment: fixed;
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            padding: 20px;
+            padding: calc(var(--app-bar-h) + env(safe-area-inset-top, 0px) + 16px) 16px calc(32px + env(safe-area-inset-bottom, 0px));
             color: var(--text-primary);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ===== 原生风格顶栏 ===== */
+        .app-bar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 150;
+            background: var(--result-primary-bg);
+            padding: env(safe-area-inset-top, 0px) 16px 0;
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+            transition: box-shadow 0.3s;
+        }
+
+        .app-bar.scrolled { box-shadow: 0 4px 18px var(--shadow); }
+
+        .app-bar-inner {
+            max-width: 552px;
+            margin: 0 auto;
+            height: var(--app-bar-h);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: white;
+        }
+
+        .app-bar-icon { font-size: 24px; line-height: 1; }
+
+        .app-bar-titles { display: flex; flex-direction: column; min-width: 0; }
+
+        .app-bar-title {
+            font-size: 16px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .app-bar-subtitle { font-size: 11px; opacity: 0.85; }
+
+        /* ===== 启动画面 ===== */
+        #splash {
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            transition: opacity 0.35s ease;
+        }
+
+        #splash.hide { opacity: 0; pointer-events: none; }
+
+        #splash img {
+            width: 96px;
+            height: 96px;
+            border-radius: 22px;
+            box-shadow: 0 10px 30px var(--shadow);
+        }
+
+        #splash .splash-name { color: var(--primary-dark); font-size: 18px; font-weight: 600; }
+        #splash .splash-sub { color: var(--text-secondary); font-size: 12px; margin-top: -8px; }
+
+        /* ===== 返回顶部 ===== */
+        .back-to-top {
+            position: fixed;
+            right: 18px;
+            bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: none;
+            background: var(--result-primary-bg);
+            color: white;
+            font-size: 20px;
+            box-shadow: 0 4px 15px var(--shadow);
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(12px);
+            transition: all 0.3s;
+            z-index: 90;
+        }
+
+        .back-to-top.show { opacity: 1; visibility: visible; transform: translateY(0); }
+
+        /* 触屏优化：禁止双击缩放误触、长按选中文本 */
+        button, .tab, .theme-btn, .dilution-select, .select-option,
+        .preset-item, .back-to-top, .theme-switcher {
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         .container {
@@ -95,23 +206,6 @@
             width: 100%;
             max-width: 520px;
             padding: 28px;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .header h1 {
-            color: var(--primary-dark);
-            font-size: 22px;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        .header .subtitle {
-            color: var(--text-secondary);
-            font-size: 12px;
         }
 
         .theme-switcher {
@@ -182,12 +276,13 @@
         }
 
         .input-group input[type="number"],
+        .input-group input[type="text"],
         .input-group textarea {
             width: 100%;
             padding: 12px 14px;
             border: 2px solid var(--border);
             border-radius: 12px;
-            font-size: 15px;
+            font-size: 16px; /* ≥16px 避免 iOS 聚焦时自动缩放页面 */
             color: var(--text-primary);
             background: var(--input-bg);
             transition: all 0.3s;
@@ -196,6 +291,7 @@
         }
 
         .input-group input[type="number"]:focus,
+        .input-group input[type="text"]:focus,
         .input-group textarea:focus {
             border-color: var(--primary);
             background: var(--card-bg);
@@ -373,7 +469,7 @@
             padding: 8px 10px;
             border: 2px solid var(--border);
             border-radius: 8px;
-            font-size: 14px;
+            font-size: 16px;
             text-align: center;
             background: var(--card-bg);
             outline: none;
@@ -677,16 +773,40 @@
             background: var(--result-primary-bg);
             color: white;
         }
+
+        /* ===== 移动端小屏适配 ===== */
+        @media (max-width: 400px) {
+            .container { padding: 20px 16px; }
+            .app-bar-title { font-size: 15px; }
+        }
+
+        /* 横屏时顶栏略收紧 */
+        @media (orientation: landscape) and (max-height: 500px) {
+            :root { --app-bar-h: 46px; }
+        }
     </style>
 <base target="_blank">
 </head>
 <body data-theme="blue">
-    <div class="container">
-        <div class="header">
-            <h1>🧪 CTC Potency Calculator</h1>
-            <div class="subtitle">金霉素效价计算器</div>
-        </div>
+    <!-- 启动画面 -->
+    <div id="splash" aria-hidden="true">
+        <img src="./icons/icon-512.png" alt="">
+        <div class="splash-name">CTC Potency Calculator</div>
+        <div class="splash-sub">金霉素效价计算器</div>
+    </div>
 
+    <!-- 原生风格顶栏 -->
+    <header class="app-bar" id="appBar">
+        <div class="app-bar-inner">
+            <span class="app-bar-icon">🧪</span>
+            <div class="app-bar-titles">
+                <span class="app-bar-title">CTC Potency Calculator</span>
+                <span class="app-bar-subtitle">金霉素效价计算器</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
         <div class="theme-switcher">
             <div class="theme-btn blue active" onclick="setTheme('blue')" title="蓝色"></div>
             <div class="theme-btn pink" onclick="setTheme('pink')" title="粉色"></div>
@@ -712,7 +832,7 @@
         <div class="tab-content active" id="tab-single">
             <div class="input-group">
                 <label for="absorbance">吸光度 (A)</label>
-                <input type="number" id="absorbance" placeholder="如 0.234" step="0.001" min="0">
+                <input type="number" id="absorbance" placeholder="如 0.234" step="0.001" min="0" inputmode="decimal">
                 <div class="hint">精确到3位小数，直接输入测得的A值</div>
             </div>
 
@@ -806,11 +926,11 @@
             </div>
             <div class="input-group">
                 <label>系数</label>
-                <input type="number" id="presetCoef" value="3240.2" step="0.1">
+                <input type="number" id="presetCoef" value="3240.2" step="0.1" inputmode="decimal">
             </div>
             <div class="input-group">
                 <label>常数</label>
-                <input type="number" id="presetConst" value="-12.8" step="0.1">
+                <input type="number" id="presetConst" value="-12.8" step="0.1" inputmode="decimal">
             </div>
             <div class="modal-buttons">
                 <button class="btn-cancel" onclick="closePresetModal()">取消</button>
@@ -830,10 +950,16 @@
         </div>
     </div>
 
+    <!-- 返回顶部 -->
+    <button class="back-to-top" id="backToTop" aria-label="返回顶部">↑</button>
+
     <script>
         let currentPresetId = 'default';
         let batchData = [];
         let currentSelectTarget = 'single';
+
+        // 各主题对应的地址栏/任务栏颜色（与顶栏渐变起始色一致）
+        const THEME_META_COLORS = { blue: '#2196f3', pink: '#e91e63', dark: '#3b82f6', white: '#616161' };
 
         let presets = JSON.parse(localStorage.getItem('ctcPresets')) || [
             { id: 'default', name: '默认标曲', coef: 3240.2, const: -12.8, isDefault: true }
@@ -855,10 +981,49 @@
             updateFormulaDisplay();
         });
 
+        // ===== PWA 体验增强 =====
+
+        // 启动画面：加载完成后淡出（2.5s 兜底，避免卡在启动页）
+        function hideSplash() {
+            const s = document.getElementById('splash');
+            if (!s || s.classList.contains('hide')) return;
+            s.classList.add('hide');
+            setTimeout(() => s.remove(), 400);
+        }
+        if (document.readyState === 'complete') {
+            setTimeout(hideSplash, 300);
+        } else {
+            window.addEventListener('load', () => setTimeout(hideSplash, 300));
+        }
+        setTimeout(hideSplash, 2500);
+
+        // 顶栏滚动阴影 + 返回顶部按钮
+        const appBar = document.getElementById('appBar');
+        const backToTopBtn = document.getElementById('backToTop');
+        window.addEventListener('scroll', () => {
+            const y = window.scrollY;
+            appBar.classList.toggle('scrolled', y > 8);
+            backToTopBtn.classList.toggle('show', y > 320);
+        }, { passive: true });
+        backToTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // 注册 Service Worker（离线能力）
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(err => {
+                    console.warn('Service Worker 注册失败:', err);
+                });
+            });
+        }
+
         function setTheme(theme, save = true) {
             document.body.setAttribute('data-theme', theme);
             document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelector(`.theme-btn.${theme}`).classList.add('active');
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (meta && THEME_META_COLORS[theme]) meta.setAttribute('content', THEME_META_COLORS[theme]);
             if (save) {
                 currentTheme = theme;
                 localStorage.setItem('ctcTheme', theme);
@@ -1060,6 +1225,10 @@
 
         function exportToExcel() {
             if (batchData.length === 0) { alert('请先进行批量计算'); return; }
+            if (typeof XLSX === 'undefined') {
+                alert('导出组件尚未加载完成（首次离线打开时不可用），联网打开一次后即可离线导出');
+                return;
+            }
 
             const formula = getCurrentFormula();
             const dilution = parseFloat(document.getElementById('batchDilution').value) || 21.0;
