@@ -1,0 +1,51 @@
+name: Add CTC usage guide
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/add-usage-guide.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add usage guide to index
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          original = s
+
+          css_anchor = '''        .footer {\n'''
+          css_add = '''        /* ===== 使用说明 ===== */\n        .usage-section {\n            margin-top: 18px;\n            border: 1px solid var(--border);\n            border-radius: 14px;\n            background: var(--input-bg);\n            overflow: hidden;\n        }\n\n        .usage-section summary {\n            padding: 12px 14px;\n            color: var(--primary-dark);\n            font-size: 13px;\n            font-weight: 600;\n            cursor: pointer;\n            list-style: none;\n            touch-action: manipulation;\n            -webkit-user-select: none;\n            user-select: none;\n        }\n\n        .usage-section summary::-webkit-details-marker { display: none; }\n        .usage-section summary::after { content: '▼'; float: right; font-size: 10px; transition: transform 0.2s; }\n        .usage-section[open] summary::after { transform: rotate(180deg); }\n\n        .usage-content {\n            padding: 0 14px 14px;\n            color: var(--text-secondary);\n            font-size: 12px;\n            line-height: 1.7;\n        }\n\n        .usage-content h4 {\n            margin: 2px 0 6px;\n            color: var(--text-primary);\n            font-size: 13px;\n        }\n\n        .usage-content ol { padding-left: 20px; margin: 0 0 14px; }\n        .usage-content li { padding-left: 2px; margin-bottom: 3px; }\n        .usage-version { padding-top: 10px; border-top: 1px solid var(--border); }\n        .usage-version p { margin: 2px 0; }\n        .usage-version strong { color: var(--text-primary); }\n\n'''
+          assert css_anchor in s
+          s = s.replace(css_anchor, css_add + css_anchor, 1)
+
+          footer_anchor = '''        <div class="footer">标曲公式有效期到期后请及时更新</div>\n'''
+          guide = '''        <details class="usage-section">\n            <summary>📖 使用说明</summary>\n            <div class="usage-content">\n                <h4>使用说明</h4>\n                <ol>\n                    <li>输入吸光度</li>\n                    <li>选择对应的稀释倍数</li>\n                    <li>没有合适的稀释倍数时，可点击「自定义」</li>\n                    <li>查看计算结果</li>\n                    <li>更换标准曲线后，需要同步更新计算公式</li>\n                    <li>新曲线建议使用表格中保留更多小数位的完整公式，以减少计算误差</li>\n                    <li>更换公式或首次使用时，建议与人工计算结果进行复核</li>\n                </ol>\n                <div class="usage-version">\n                    <h4>关于此版本</h4>\n                    <p><strong>CTC Potency Calculator</strong></p>\n                    <p>版本：v1.2</p>\n                    <p>最后更新：2026/08/29</p>\n                </div>\n            </div>\n        </details>\n\n''' + footer_anchor
+          assert footer_anchor in s
+          s = s.replace(footer_anchor, guide, 1)
+
+          assert s != original
+          assert s.count('<details class="usage-section">') == 1
+          assert '版本：v1.2' in s
+          assert '最后更新：2026/08/29' in s
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Commit only index.html and remove workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Add collapsible CTC usage guide"
+          git push
+          git rm .github/workflows/add-usage-guide.yml
+          git commit -m "Remove temporary update workflow"
+          git push
