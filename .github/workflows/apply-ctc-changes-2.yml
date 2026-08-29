@@ -1,0 +1,71 @@
+name: Apply CTC calculator changes 2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-ctc-changes-2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Modify index.html
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p=Path('index.html'); s=p.read_text(encoding='utf-8'); original=s
+          css='''        /* ===== 稀释倍数选择框 ===== */\n'''
+          add='''        .dilution-controls { display:flex; gap:8px; align-items:stretch; }\n        .dilution-controls .dilution-select-wrapper { flex:1; }\n        .dilution-custom-btn { flex:0 0 auto; min-width:84px; padding:0 14px; border:2px solid var(--border); border-radius:12px; background:var(--primary-light); color:var(--primary-dark); font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; }\n        .dilution-custom-btn:active { transform:scale(0.98); }\n        .dilution-custom-input { display:none; flex:1; width:100%; padding:12px 14px; border:2px solid var(--primary); border-radius:12px; font-size:18px; font-weight:600; color:var(--primary-dark); background:var(--input-bg); outline:none; }\n\n'''
+          assert css in s; s=s.replace(css,css+add,1)
+          old='''            <!-- 稀释倍数 - 点击直接选中的选择框 -->\n            <div class="input-group">\n                <label>稀释倍数</label>\n                <div class="dilution-select-wrapper" onclick="openDilutionSelect('single')">\n                    <div class="dilution-select" id="dilutionDisplayBox">\n                        <span id="dilutionDisplayText">21.0</span>\n                        <span class="dilution-select-arrow">▼</span>\n                    </div>\n                </div>\n                <div class="hint">点击选择稀释倍数，范围 3.0 ~ 21.0</div>\n            </div>\n            <input type="hidden" id="dilution" value="21.0">\n'''
+          new='''            <!-- 稀释倍数 -->\n            <div class="input-group">\n                <label>稀释倍数</label>\n                <div class="dilution-controls">\n                    <div class="dilution-select-wrapper" id="singleDilutionSelectWrapper" onclick="openDilutionSelect('single')">\n                        <div class="dilution-select" id="dilutionDisplayBox">\n                            <span id="dilutionDisplayText">21.0</span>\n                            <span class="dilution-select-arrow">▼</span>\n                        </div>\n                    </div>\n                    <input type="number" class="dilution-custom-input" id="dilutionCustomInput" step="any" min="0" inputmode="decimal" placeholder="输入倍数">\n                    <button type="button" class="dilution-custom-btn" id="singleDilutionCustomBtn" onclick="enableCustomDilution('single')">自定义</button>\n                </div>\n                <div class="hint">点击选择常用稀释倍数，或点击“自定义”直接输入</div>\n            </div>\n            <input type="hidden" id="dilution" value="21.0">\n'''
+          assert old in s; s=s.replace(old,new,1)
+          old='''            <!-- 批量稀释倍数 - 点击直接选中的选择框 -->\n            <div class="input-group">\n                <label>稀释倍数</label>\n                <div class="dilution-select-wrapper" onclick="openDilutionSelect('batch')">\n                    <div class="dilution-select" id="batchDilutionDisplayBox">\n                        <span id="batchDilutionDisplayText">21.0</span>\n                        <span class="dilution-select-arrow">▼</span>\n                    </div>\n                </div>\n                <div class="hint">点击选择稀释倍数，范围 3.0 ~ 21.0</div>\n            </div>\n            <input type="hidden" id="batchDilution" value="21.0">\n'''
+          new='''            <!-- 批量稀释倍数 -->\n            <div class="input-group">\n                <label>稀释倍数</label>\n                <div class="dilution-controls">\n                    <div class="dilution-select-wrapper" id="batchDilutionSelectWrapper" onclick="openDilutionSelect('batch')">\n                        <div class="dilution-select" id="batchDilutionDisplayBox">\n                            <span id="batchDilutionDisplayText">21.0</span>\n                            <span class="dilution-select-arrow">▼</span>\n                        </div>\n                    </div>\n                    <input type="number" class="dilution-custom-input" id="batchDilutionCustomInput" step="any" min="0" inputmode="decimal" placeholder="输入倍数">\n                    <button type="button" class="dilution-custom-btn" id="batchDilutionCustomBtn" onclick="enableCustomDilution('batch')">自定义</button>\n                </div>\n                <div class="hint">点击选择常用稀释倍数，或点击“自定义”直接输入</div>\n            </div>\n            <input type="hidden" id="batchDilution" value="21.0">\n'''
+          assert old in s; s=s.replace(old,new,1)
+          old='''        // 生成稀释倍数选项 3.0 ~ 21.0，步长 0.5\n        const DILUTION_OPTIONS = [];\n        for (let v = 3.0; v <= 21.0; v += 0.5) {\n            DILUTION_OPTIONS.push(v.toFixed(1));\n        }\n'''
+          new='''        // 生成稀释倍数选项 3.0 ~ 21.0，步长 1.5\n        const DILUTION_OPTIONS = [];\n        for (let v = 3.0; v <= 21.0; v += 1.5) {\n            DILUTION_OPTIONS.push(v.toFixed(1));\n        }\n'''
+          assert old in s; s=s.replace(old,new,1)
+          old='''        let currentPresetId = 'default';\n        let batchData = [];\n        let currentSelectTarget = 'single';\n'''
+          new='''        let batchData = [];\n        let currentSelectTarget = 'single';\n'''
+          assert old in s; s=s.replace(old,new,1)
+          old='''        let presets = JSON.parse(localStorage.getItem('ctcPresets')) || [\n            { id: 'default', name: '默认标曲', coef: 3240.2, const: -12.8, isDefault: true }\n        ];\n\n        let history = JSON.parse(localStorage.getItem('ctcHistory')) || [];\n'''
+          new='''        let presets = JSON.parse(localStorage.getItem('ctcPresets')) || [\n            { id: 'default', name: '默认标曲', coef: 3240.2, const: -12.8, isDefault: true }\n        ];\n\n        let savedDefaultPresetId = localStorage.getItem('ctcDefaultPresetId');\n        if (!savedDefaultPresetId || !presets.some(p => p.id === savedDefaultPresetId)) {\n            savedDefaultPresetId = presets.find(p => p.isDefault)?.id || presets[0]?.id || 'default';\n        }\n        presets.forEach(p => { p.isDefault = p.id === savedDefaultPresetId; });\n        localStorage.setItem('ctcDefaultPresetId', savedDefaultPresetId);\n        localStorage.setItem('ctcPresets', JSON.stringify(presets));\n        let currentPresetId = savedDefaultPresetId;\n\n        let history = JSON.parse(localStorage.getItem('ctcHistory')) || [];\n'''
+          assert old in s; s=s.replace(old,new,1)
+          old='''                    ${!p.isDefault ? `\n                    <div class="preset-actions">\n                        <button onclick="event.stopPropagation(); deletePreset('${p.id}')">🗑️</button>\n                    </div>` : ''}\n'''
+          new='''                    <div class="preset-actions">\n                        ${!p.isDefault ? `<button onclick="event.stopPropagation(); setDefaultPreset('${p.id}')">设为默认</button>` : ''}\n                        ${!p.isDefault ? `<button onclick="event.stopPropagation(); deletePreset('${p.id}')">🗑️</button>` : ''}\n                    </div>\n'''
+          assert old in s; s=s.replace(old,new,1)
+          old='''        function selectPreset(id) {\n            currentPresetId = id;\n            renderPresets();\n            updateFormulaDisplay();\n        }\n\n        function updateFormulaDisplay() {\n'''
+          new='''        function selectPreset(id) {\n            currentPresetId = id;\n            renderPresets();\n            updateFormulaDisplay();\n        }\n\n        function setDefaultPreset(id) {\n            if (!presets.some(p => p.id === id)) return;\n            presets.forEach(p => { p.isDefault = p.id === id; });\n            savedDefaultPresetId = id;\n            currentPresetId = id;\n            localStorage.setItem('ctcDefaultPresetId', id);\n            localStorage.setItem('ctcPresets', JSON.stringify(presets));\n            renderPresets();\n            updateFormulaDisplay();\n        }\n\n        function updateFormulaDisplay() {\n'''
+          assert old in s; s=s.replace(old,new,1)
+          old='''        function deletePreset(id) {\n            if (!confirm('确定删除此预设？')) return;\n            presets = presets.filter(p => p.id !== id);\n            if (currentPresetId === id) currentPresetId = 'default';\n            localStorage.setItem('ctcPresets', JSON.stringify(presets));\n            renderPresets();\n            updateFormulaDisplay();\n        }\n'''
+          new='''        function deletePreset(id) {\n            if (!confirm('确定删除此预设？')) return;\n            if (id === savedDefaultPresetId) {\n                alert('默认公式不能删除，请先设置其他公式为默认。');\n                return;\n            }\n            presets = presets.filter(p => p.id !== id);\n            if (currentPresetId === id) currentPresetId = savedDefaultPresetId;\n            localStorage.setItem('ctcPresets', JSON.stringify(presets));\n            renderPresets();\n            updateFormulaDisplay();\n        }\n'''
+          assert old in s; s=s.replace(old,new,1)
+          old='''        function closeSelectModal(event) {\n'''
+          new='''        function enableCustomDilution(target) {\n            const single = target === 'single';\n            const wrapper = document.getElementById(single ? 'singleDilutionSelectWrapper' : 'batchDilutionSelectWrapper');\n            const input = document.getElementById(single ? 'dilutionCustomInput' : 'batchDilutionCustomInput');\n            const button = document.getElementById(single ? 'singleDilutionCustomBtn' : 'batchDilutionCustomBtn');\n            const hidden = document.getElementById(single ? 'dilution' : 'batchDilution');\n            wrapper.style.display = 'none';\n            input.style.display = 'block';\n            input.value = hidden.value || '';\n            button.textContent = '完成';\n            button.onclick = () => finishCustomDilution(target);\n            setTimeout(() => { input.focus(); input.select(); }, 0);\n        }\n\n        function finishCustomDilution(target) {\n            const single = target === 'single';\n            const wrapper = document.getElementById(single ? 'singleDilutionSelectWrapper' : 'batchDilutionSelectWrapper');\n            const input = document.getElementById(single ? 'dilutionCustomInput' : 'batchDilutionCustomInput');\n            const button = document.getElementById(single ? 'singleDilutionCustomBtn' : 'batchDilutionCustomBtn');\n            const hidden = document.getElementById(single ? 'dilution' : 'batchDilution');\n            const display = document.getElementById(single ? 'dilutionDisplayText' : 'batchDilutionDisplayText');\n            const value = parseFloat(input.value);\n            if (!Number.isFinite(value) || value <= 0) { alert('请输入有效的稀释倍数'); input.focus(); return; }\n            hidden.value = value;\n            display.textContent = value.toFixed(1);\n            input.style.display = 'none';\n            wrapper.style.display = '';\n            button.textContent = '自定义';\n            button.onclick = () => enableCustomDilution(target);\n        }\n\n        function closeSelectModal(event) {\n'''
+          assert old in s; s=s.replace(old,new,1)
+          old='''        function selectDilutionValueAndClose(value) {\n            if (currentSelectTarget === 'single') {\n                document.getElementById('dilution').value = value;\n                document.getElementById('dilutionDisplayText').textContent = value;\n            } else {\n                document.getElementById('batchDilution').value = value;\n                document.getElementById('batchDilutionDisplayText').textContent = value;\n            }\n\n            // 直接关闭弹窗\n            closeSelectModal();\n        }\n'''
+          new='''        function selectDilutionValueAndClose(value) {\n            const single = currentSelectTarget === 'single';\n            const wrapper = document.getElementById(single ? 'singleDilutionSelectWrapper' : 'batchDilutionSelectWrapper');\n            const input = document.getElementById(single ? 'dilutionCustomInput' : 'batchDilutionCustomInput');\n            const button = document.getElementById(single ? 'singleDilutionCustomBtn' : 'batchDilutionCustomBtn');\n            if (single) {\n                document.getElementById('dilution').value = value;\n                document.getElementById('dilutionDisplayText').textContent = value;\n            } else {\n                document.getElementById('batchDilution').value = value;\n                document.getElementById('batchDilutionDisplayText').textContent = value;\n            }\n            input.style.display = 'none';\n            wrapper.style.display = '';\n            button.textContent = '自定义';\n            button.onclick = () => enableCustomDilution(currentSelectTarget);\n            closeSelectModal();\n        }\n'''
+          assert old in s; s=s.replace(old,new,1)
+          assert s != original
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Validate and commit index only
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          for x in ["v += 1.5", 'singleDilutionCustomBtn', 'batchDilutionCustomBtn', 'setDefaultPreset(id)', 'ctcDefaultPresetId']:
+              assert x in s, x
+          print('Validation OK')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Update CTC dilution options and default formula"
+          git push
