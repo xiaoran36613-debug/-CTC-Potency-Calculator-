@@ -1,0 +1,105 @@
+name: Apply CTC calculator changes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-ctc-changes.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Modify index.html
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          s = path.read_text(encoding='utf-8')
+          original = s
+
+          css_anchor = '''        /* ===== 稀释倍数选择框 ===== */\n'''
+          css_insert = '''        .dilution-controls {\n            display: flex;\n            gap: 8px;\n            align-items: stretch;\n        }\n\n        .dilution-controls .dilution-select-wrapper {\n            flex: 1;\n        }\n\n        .dilution-custom-btn {\n            flex: 0 0 auto;\n            min-width: 84px;\n            padding: 0 14px;\n            border: 2px solid var(--border);\n            border-radius: 12px;\n            background: var(--primary-light);\n            color: var(--primary-dark);\n            font-size: 14px;\n            font-weight: 600;\n            cursor: pointer;\n            touch-action: manipulation;\n        }\n\n        .dilution-custom-btn:active {\n            transform: scale(0.98);\n        }\n\n        .dilution-custom-input {\n            display: none;\n            flex: 1;\n            width: 100%;\n            padding: 12px 14px;\n            border: 2px solid var(--primary);\n            border-radius: 12px;\n            font-size: 18px;\n            font-weight: 600;\n            color: var(--primary-dark);\n            background: var(--input-bg);\n            outline: none;\n        }\n\n'''
+          if css_anchor not in s: raise SystemExit('CSS anchor not found')
+          s = s.replace(css_anchor, css_anchor + css_insert, 1)
+
+          old_single = '''            <!-- 稀释倍数 - 点击直接选中的选择框 -->\n            <div class="input-group">\n                <label>稀释倍数</label>\n                <div class="dilution-select-wrapper" onclick="openDilutionSelect('single')">\n                    <div class="dilution-select" id="dilutionDisplayBox">\n                        <span id="dilutionDisplayText">21.0</span>\n                        <span class="dilution-select-arrow">▼</span>\n                    </div>\n                </div>\n                <div class="hint">点击选择稀释倍数，范围 3.0 ~ 21.0</div>\n            </div>\n            <input type="hidden" id="dilution" value="21.0">\n'''
+          new_single = '''            <!-- 稀释倍数 -->\n            <div class="input-group">\n                <label>稀释倍数</label>\n                <div class="dilution-controls">\n                    <div class="dilution-select-wrapper" id="singleDilutionSelectWrapper" onclick="openDilutionSelect('single')">\n                        <div class="dilution-select" id="dilutionDisplayBox">\n                            <span id="dilutionDisplayText">21.0</span>\n                            <span class="dilution-select-arrow">▼</span>\n                        </div>\n                    </div>\n                    <input type="number" class="dilution-custom-input" id="dilutionCustomInput" step="any" min="0" inputmode="decimal" placeholder="输入倍数">\n                    <button type="button" class="dilution-custom-btn" id="singleDilutionCustomBtn" onclick="enableCustomDilution('single')">自定义</button>\n                </div>\n                <div class="hint">点击选择常用稀释倍数，或点击“自定义”直接输入</div>\n            </div>\n            <input type="hidden" id="dilution" value="21.0">\n'''
+          if old_single not in s: raise SystemExit('single dilution block not found')
+          s = s.replace(old_single, new_single, 1)
+
+          old_batch = '''            <!-- 批量稀释倍数 - 点击直接选中的选择框 -->\n            <div class="input-group">\n                <label>稀释倍数</label>\n                <div class="dilution-select-wrapper" onclick="openDilutionSelect('batch')">\n                    <div class="dilution-select" id="batchDilutionDisplayBox">\n                        <span id="batchDilutionDisplayText">21.0</span>\n                        <span class="dilution-select-arrow">▼</span>\n                    </div>\n                </div>\n                <div class="hint">点击选择稀释倍数，范围 3.0 ~ 21.0</div>\n            </div>\n            <input type="hidden" id="batchDilution" value="21.0">\n'''
+          new_batch = '''            <!-- 批量稀释倍数 -->\n            <div class="input-group">\n                <label>稀释倍数</label>\n                <div class="dilution-controls">\n                    <div class="dilution-select-wrapper" id="batchDilutionSelectWrapper" onclick="openDilutionSelect('batch')">\n                        <div class="dilution-select" id="batchDilutionDisplayBox">\n                            <span id="batchDilutionDisplayText">21.0</span>\n                            <span class="dilution-select-arrow">▼</span>\n                        </div>\n                    </div>\n                    <input type="number" class="dilution-custom-input" id="batchDilutionCustomInput" step="any" min="0" inputmode="decimal" placeholder="输入倍数">\n                    <button type="button" class="dilution-custom-btn" id="batchDilutionCustomBtn" onclick="enableCustomDilution('batch')">自定义</button>\n                </div>\n                <div class="hint">点击选择常用稀释倍数，或点击“自定义”直接输入</div>\n            </div>\n            <input type="hidden" id="batchDilution" value="21.0">\n'''
+          if old_batch not in s: raise SystemExit('batch dilution block not found')
+          s = s.replace(old_batch, new_batch, 1)
+
+          old_options = '''        // 生成稀释倍数选项 3.0 ~ 21.0，步长 0.5\n        const DILUTION_OPTIONS = [];\n        for (let v = 3.0; v <= 21.0; v += 0.5) {\n            DILUTION_OPTIONS.push(v.toFixed(1));\n        }\n'''
+          new_options = '''        // 生成稀释倍数选项 3.0 ~ 21.0，步长 1.5\n        const DILUTION_OPTIONS = [];\n        for (let v = 3.0; v <= 21.0; v += 1.5) {\n            DILUTION_OPTIONS.push(v.toFixed(1));\n        }\n'''
+          if old_options not in s: raise SystemExit('dilution options block not found')
+          s = s.replace(old_options, new_options, 1)
+
+          old_state = '''        let currentPresetId = 'default';\n        let batchData = [];\n        let currentSelectTarget = 'single';\n'''
+          new_state = '''        let batchData = [];\n        let currentSelectTarget = 'single';\n'''
+          if old_state not in s: raise SystemExit('state block not found')
+          s = s.replace(old_state, new_state, 1)
+
+          old_presets = '''        let presets = JSON.parse(localStorage.getItem('ctcPresets')) || [\n            { id: 'default', name: '默认标曲', coef: 3240.2, const: -12.8, isDefault: true }\n        ];\n\n        let history = JSON.parse(localStorage.getItem('ctcHistory')) || [];\n'''
+          new_presets = '''        let presets = JSON.parse(localStorage.getItem('ctcPresets')) || [\n            { id: 'default', name: '默认标曲', coef: 3240.2, const: -12.8, isDefault: true }\n        ];\n\n        let savedDefaultPresetId = localStorage.getItem('ctcDefaultPresetId');\n        if (!savedDefaultPresetId || !presets.some(p => p.id === savedDefaultPresetId)) {\n            savedDefaultPresetId = presets.find(p => p.isDefault)?.id || presets[0]?.id || 'default';\n        }\n        presets.forEach(p => { p.isDefault = p.id === savedDefaultPresetId; });\n        localStorage.setItem('ctcDefaultPresetId', savedDefaultPresetId);\n        localStorage.setItem('ctcPresets', JSON.stringify(presets));\n        let currentPresetId = savedDefaultPresetId;\n\n        let history = JSON.parse(localStorage.getItem('ctcHistory')) || [];\n'''
+          if old_presets not in s: raise SystemExit('presets block not found')
+          s = s.replace(old_presets, new_presets, 1)
+
+          old_actions = '''                    ${!p.isDefault ? `\n                    <div class="preset-actions">\n                        <button onclick="event.stopPropagation(); deletePreset('${p.id}')">🗑️</button>\n                    </div>` : ''}\n'''
+          new_actions = '''                    <div class="preset-actions">\n                        ${!p.isDefault ? `<button onclick="event.stopPropagation(); setDefaultPreset('${p.id}')">设为默认</button>` : ''}\n                        ${!p.isDefault ? `<button onclick="event.stopPropagation(); deletePreset('${p.id}')">🗑️</button>` : ''}\n                    </div>\n'''
+          if old_actions not in s: raise SystemExit('preset actions block not found')
+          s = s.replace(old_actions, new_actions, 1)
+
+          old_select = '''        function selectPreset(id) {\n            currentPresetId = id;\n            renderPresets();\n            updateFormulaDisplay();\n        }\n\n        function updateFormulaDisplay() {\n'''
+          new_select = '''        function selectPreset(id) {\n            currentPresetId = id;\n            renderPresets();\n            updateFormulaDisplay();\n        }\n\n        function setDefaultPreset(id) {\n            const exists = presets.some(p => p.id === id);\n            if (!exists) return;\n            presets.forEach(p => { p.isDefault = p.id === id; });\n            savedDefaultPresetId = id;\n            currentPresetId = id;\n            localStorage.setItem('ctcDefaultPresetId', id);\n            localStorage.setItem('ctcPresets', JSON.stringify(presets));\n            renderPresets();\n            updateFormulaDisplay();\n        }\n\n        function updateFormulaDisplay() {\n'''
+          if old_select not in s: raise SystemExit('selectPreset block not found')
+          s = s.replace(old_select, new_select, 1)
+
+          old_delete = '''        function deletePreset(id) {\n            if (!confirm('确定删除此预设？')) return;\n            presets = presets.filter(p => p.id !== id);\n            if (currentPresetId === id) currentPresetId = 'default';\n            localStorage.setItem('ctcPresets', JSON.stringify(presets));\n            renderPresets();\n            updateFormulaDisplay();\n        }\n'''
+          new_delete = '''        function deletePreset(id) {\n            if (!confirm('确定删除此预设？')) return;\n            if (id === savedDefaultPresetId) {\n                alert('默认公式不能删除，请先设置其他公式为默认。');\n                return;\n            }\n            presets = presets.filter(p => p.id !== id);\n            if (currentPresetId === id) currentPresetId = savedDefaultPresetId;\n            localStorage.setItem('ctcPresets', JSON.stringify(presets));\n            renderPresets();\n            updateFormulaDisplay();\n        }\n'''
+          if old_delete not in s: raise SystemExit('deletePreset block not found')
+          s = s.replace(old_delete, new_delete, 1)
+
+          old_close = '''        function closeSelectModal(event) {\n'''
+          custom_fn = '''        function enableCustomDilution(target) {\n            const isSingle = target === 'single';\n            const wrapper = document.getElementById(isSingle ? 'singleDilutionSelectWrapper' : 'batchDilutionSelectWrapper');\n            const input = document.getElementById(isSingle ? 'dilutionCustomInput' : 'batchDilutionCustomInput');\n            const button = document.getElementById(isSingle ? 'singleDilutionCustomBtn' : 'batchDilutionCustomBtn');\n            const hidden = document.getElementById(isSingle ? 'dilution' : 'batchDilution');\n            const current = parseFloat(hidden.value);\n\n            wrapper.style.display = 'none';\n            input.style.display = 'block';\n            input.value = Number.isFinite(current) ? current : '';\n            button.textContent = '完成';\n            button.onclick = () => finishCustomDilution(target);\n            setTimeout(() => { input.focus(); input.select(); }, 0);\n        }\n\n        function finishCustomDilution(target) {\n            const isSingle = target === 'single';\n            const wrapper = document.getElementById(isSingle ? 'singleDilutionSelectWrapper' : 'batchDilutionSelectWrapper');\n            const input = document.getElementById(isSingle ? 'dilutionCustomInput' : 'batchDilutionCustomInput');\n            const button = document.getElementById(isSingle ? 'singleDilutionCustomBtn' : 'batchDilutionCustomBtn');\n            const hidden = document.getElementById(isSingle ? 'dilution' : 'batchDilution');\n            const displayText = document.getElementById(isSingle ? 'dilutionDisplayText' : 'batchDilutionDisplayText');\n            const value = parseFloat(input.value);\n\n            if (!Number.isFinite(value) || value <= 0) {\n                alert('请输入有效的稀释倍数');\n                input.focus();\n                return;\n            }\n\n            hidden.value = value;\n            displayText.textContent = value.toFixed(1);\n            input.style.display = 'none';\n            wrapper.style.display = '';\n            button.textContent = '自定义';\n            button.onclick = () => enableCustomDilution(target);\n        }\n\n        function closeSelectModal(event) {\n'''
+          if old_close not in s: raise SystemExit('closeSelectModal anchor not found')
+          s = s.replace(old_close, custom_fn, 1)
+
+          old_select_value = '''        function selectDilutionValueAndClose(value) {\n            if (currentSelectTarget === 'single') {\n                document.getElementById('dilution').value = value;\n                document.getElementById('dilutionDisplayText').textContent = value;\n            } else {\n                document.getElementById('batchDilution').value = value;\n                document.getElementById('batchDilutionDisplayText').textContent = value;\n            }\n\n            // 直接关闭弹窗\n            closeSelectModal();\n        }\n'''
+          new_select_value = '''        function selectDilutionValueAndClose(value) {\n            const isSingle = currentSelectTarget === 'single';\n            const wrapper = document.getElementById(isSingle ? 'singleDilutionSelectWrapper' : 'batchDilutionSelectWrapper');\n            const input = document.getElementById(isSingle ? 'dilutionCustomInput' : 'batchDilutionCustomInput');\n            const button = document.getElementById(isSingle ? 'singleDilutionCustomBtn' : 'batchDilutionCustomBtn');\n\n            if (isSingle) {\n                document.getElementById('dilution').value = value;\n                document.getElementById('dilutionDisplayText').textContent = value;\n            } else {\n                document.getElementById('batchDilution').value = value;\n                document.getElementById('batchDilutionDisplayText').textContent = value;\n            }\n\n            input.style.display = 'none';\n            wrapper.style.display = '';\n            button.textContent = '自定义';\n            button.onclick = () => enableCustomDilution(currentSelectTarget);\n            closeSelectModal();\n        }\n'''
+          if old_select_value not in s: raise SystemExit('selectDilutionValueAndClose block not found')
+          s = s.replace(old_select_value, new_select_value, 1)
+
+          if s == original: raise SystemExit('No changes made')
+          path.write_text(s, encoding='utf-8')
+          PY
+      - name: Validate and commit
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s = Path('index.html').read_text(encoding='utf-8')
+          checks = [
+              "for (let v = 3.0; v <= 21.0; v += 1.5)",
+              'id="singleDilutionCustomBtn"',
+              'id="batchDilutionCustomBtn"',
+              'function setDefaultPreset(id)',
+              "ctcDefaultPresetId",
+          ]
+          for c in checks: assert c in s, c
+          print('Validation OK')
+          PY
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git rm .github/workflows/apply-ctc-changes.yml
+          git commit -m "Update CTC dilution options and default formula"
+          git push
