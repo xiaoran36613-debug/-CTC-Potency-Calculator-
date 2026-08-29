@@ -310,6 +310,12 @@
         }
 
         /* ===== 稀释倍数选择框 ===== */
+        .dilution-controls { display:flex; gap:8px; align-items:stretch; }
+        .dilution-controls .dilution-select-wrapper { flex:1; }
+        .dilution-custom-btn { flex:0 0 auto; min-width:84px; padding:0 14px; border:2px solid var(--border); border-radius:12px; background:var(--primary-light); color:var(--primary-dark); font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; }
+        .dilution-custom-btn:active { transform:scale(0.98); }
+        .dilution-custom-input { display:none; flex:1; width:100%; padding:12px 14px; border:2px solid var(--primary); border-radius:12px; font-size:18px; font-weight:600; color:var(--primary-dark); background:var(--input-bg); outline:none; }
+
         .dilution-select-wrapper {
             position: relative;
         }
@@ -836,16 +842,20 @@
                 <div class="hint">精确到3位小数，直接输入测得的A值</div>
             </div>
 
-            <!-- 稀释倍数 - 点击直接选中的选择框 -->
+            <!-- 稀释倍数 -->
             <div class="input-group">
                 <label>稀释倍数</label>
-                <div class="dilution-select-wrapper" onclick="openDilutionSelect('single')">
-                    <div class="dilution-select" id="dilutionDisplayBox">
-                        <span id="dilutionDisplayText">21.0</span>
-                        <span class="dilution-select-arrow">▼</span>
+                <div class="dilution-controls">
+                    <div class="dilution-select-wrapper" id="singleDilutionSelectWrapper" onclick="openDilutionSelect('single')">
+                        <div class="dilution-select" id="dilutionDisplayBox">
+                            <span id="dilutionDisplayText">21.0</span>
+                            <span class="dilution-select-arrow">▼</span>
+                        </div>
                     </div>
+                    <input type="number" class="dilution-custom-input" id="dilutionCustomInput" step="any" min="0" inputmode="decimal" placeholder="输入倍数">
+                    <button type="button" class="dilution-custom-btn" id="singleDilutionCustomBtn" onclick="enableCustomDilution('single')">自定义</button>
                 </div>
-                <div class="hint">点击选择稀释倍数，范围 3.0 ~ 21.0</div>
+                <div class="hint">点击选择常用稀释倍数，或点击“自定义”直接输入</div>
             </div>
             <input type="hidden" id="dilution" value="21.0">
 
@@ -874,16 +884,20 @@
                 <div class="hint">每行输入一个A值，精确到3位小数</div>
             </div>
 
-            <!-- 批量稀释倍数 - 点击直接选中的选择框 -->
+            <!-- 批量稀释倍数 -->
             <div class="input-group">
                 <label>稀释倍数</label>
-                <div class="dilution-select-wrapper" onclick="openDilutionSelect('batch')">
-                    <div class="dilution-select" id="batchDilutionDisplayBox">
-                        <span id="batchDilutionDisplayText">21.0</span>
-                        <span class="dilution-select-arrow">▼</span>
+                <div class="dilution-controls">
+                    <div class="dilution-select-wrapper" id="batchDilutionSelectWrapper" onclick="openDilutionSelect('batch')">
+                        <div class="dilution-select" id="batchDilutionDisplayBox">
+                            <span id="batchDilutionDisplayText">21.0</span>
+                            <span class="dilution-select-arrow">▼</span>
+                        </div>
                     </div>
+                    <input type="number" class="dilution-custom-input" id="batchDilutionCustomInput" step="any" min="0" inputmode="decimal" placeholder="输入倍数">
+                    <button type="button" class="dilution-custom-btn" id="batchDilutionCustomBtn" onclick="enableCustomDilution('batch')">自定义</button>
                 </div>
-                <div class="hint">点击选择稀释倍数，范围 3.0 ~ 21.0</div>
+                <div class="hint">点击选择常用稀释倍数，或点击“自定义”直接输入</div>
             </div>
             <input type="hidden" id="batchDilution" value="21.0">
 
@@ -954,7 +968,6 @@
     <button class="back-to-top" id="backToTop" aria-label="返回顶部">↑</button>
 
     <script>
-        let currentPresetId = 'default';
         let batchData = [];
         let currentSelectTarget = 'single';
 
@@ -965,12 +978,21 @@
             { id: 'default', name: '默认标曲', coef: 3240.2, const: -12.8, isDefault: true }
         ];
 
+        let savedDefaultPresetId = localStorage.getItem('ctcDefaultPresetId');
+        if (!savedDefaultPresetId || !presets.some(p => p.id === savedDefaultPresetId)) {
+            savedDefaultPresetId = presets.find(p => p.isDefault)?.id || presets[0]?.id || 'default';
+        }
+        presets.forEach(p => { p.isDefault = p.id === savedDefaultPresetId; });
+        localStorage.setItem('ctcDefaultPresetId', savedDefaultPresetId);
+        localStorage.setItem('ctcPresets', JSON.stringify(presets));
+        let currentPresetId = savedDefaultPresetId;
+
         let history = JSON.parse(localStorage.getItem('ctcHistory')) || [];
         let currentTheme = localStorage.getItem('ctcTheme') || 'blue';
 
-        // 生成稀释倍数选项 3.0 ~ 21.0，步长 0.5
+        // 生成稀释倍数选项 3.0 ~ 21.0，步长 1.5
         const DILUTION_OPTIONS = [];
-        for (let v = 3.0; v <= 21.0; v += 0.5) {
+        for (let v = 3.0; v <= 21.0; v += 1.5) {
             DILUTION_OPTIONS.push(v.toFixed(1));
         }
 
@@ -1045,16 +1067,27 @@
                         <div class="preset-info">${p.name} ${p.isDefault ? '(默认)' : ''}</div>
                         <div class="preset-formula">单位 = ${p.coef} × A ${p.const >= 0 ? '+' : '−'} ${Math.abs(p.const)}</div>
                     </div>
-                    ${!p.isDefault ? `
                     <div class="preset-actions">
-                        <button onclick="event.stopPropagation(); deletePreset('${p.id}')">🗑️</button>
-                    </div>` : ''}
+                        ${!p.isDefault ? `<button onclick="event.stopPropagation(); setDefaultPreset('${p.id}')">设为默认</button>` : ''}
+                        ${!p.isDefault ? `<button onclick="event.stopPropagation(); deletePreset('${p.id}')">🗑️</button>` : ''}
+                    </div>
                 </div>
             `).join('');
         }
 
         function selectPreset(id) {
             currentPresetId = id;
+            renderPresets();
+            updateFormulaDisplay();
+        }
+
+        function setDefaultPreset(id) {
+            if (!presets.some(p => p.id === id)) return;
+            presets.forEach(p => { p.isDefault = p.id === id; });
+            savedDefaultPresetId = id;
+            currentPresetId = id;
+            localStorage.setItem('ctcDefaultPresetId', id);
+            localStorage.setItem('ctcPresets', JSON.stringify(presets));
             renderPresets();
             updateFormulaDisplay();
         }
@@ -1096,8 +1129,12 @@
 
         function deletePreset(id) {
             if (!confirm('确定删除此预设？')) return;
+            if (id === savedDefaultPresetId) {
+                alert('默认公式不能删除，请先设置其他公式为默认。');
+                return;
+            }
             presets = presets.filter(p => p.id !== id);
-            if (currentPresetId === id) currentPresetId = 'default';
+            if (currentPresetId === id) currentPresetId = savedDefaultPresetId;
             localStorage.setItem('ctcPresets', JSON.stringify(presets));
             renderPresets();
             updateFormulaDisplay();
@@ -1146,16 +1183,53 @@
 
         // 点击数字 → 直接选中并关闭弹窗
         function selectDilutionValueAndClose(value) {
-            if (currentSelectTarget === 'single') {
+            const single = currentSelectTarget === 'single';
+            const wrapper = document.getElementById(single ? 'singleDilutionSelectWrapper' : 'batchDilutionSelectWrapper');
+            const input = document.getElementById(single ? 'dilutionCustomInput' : 'batchDilutionCustomInput');
+            const button = document.getElementById(single ? 'singleDilutionCustomBtn' : 'batchDilutionCustomBtn');
+            if (single) {
                 document.getElementById('dilution').value = value;
                 document.getElementById('dilutionDisplayText').textContent = value;
             } else {
                 document.getElementById('batchDilution').value = value;
                 document.getElementById('batchDilutionDisplayText').textContent = value;
             }
-
-            // 直接关闭弹窗
+            input.style.display = 'none';
+            wrapper.style.display = '';
+            button.textContent = '自定义';
+            button.onclick = () => enableCustomDilution(currentSelectTarget);
             closeSelectModal();
+        }
+
+        function enableCustomDilution(target) {
+            const single = target === 'single';
+            const wrapper = document.getElementById(single ? 'singleDilutionSelectWrapper' : 'batchDilutionSelectWrapper');
+            const input = document.getElementById(single ? 'dilutionCustomInput' : 'batchDilutionCustomInput');
+            const button = document.getElementById(single ? 'singleDilutionCustomBtn' : 'batchDilutionCustomBtn');
+            const hidden = document.getElementById(single ? 'dilution' : 'batchDilution');
+            wrapper.style.display = 'none';
+            input.style.display = 'block';
+            input.value = hidden.value || '';
+            button.textContent = '完成';
+            button.onclick = () => finishCustomDilution(target);
+            setTimeout(() => { input.focus(); input.select(); }, 0);
+        }
+
+        function finishCustomDilution(target) {
+            const single = target === 'single';
+            const wrapper = document.getElementById(single ? 'singleDilutionSelectWrapper' : 'batchDilutionSelectWrapper');
+            const input = document.getElementById(single ? 'dilutionCustomInput' : 'batchDilutionCustomInput');
+            const button = document.getElementById(single ? 'singleDilutionCustomBtn' : 'batchDilutionCustomBtn');
+            const hidden = document.getElementById(single ? 'dilution' : 'batchDilution');
+            const display = document.getElementById(single ? 'dilutionDisplayText' : 'batchDilutionDisplayText');
+            const value = parseFloat(input.value);
+            if (!Number.isFinite(value) || value <= 0) { alert('请输入有效的稀释倍数'); input.focus(); return; }
+            hidden.value = value;
+            display.textContent = value.toFixed(1);
+            input.style.display = 'none';
+            wrapper.style.display = '';
+            button.textContent = '自定义';
+            button.onclick = () => enableCustomDilution(target);
         }
 
         function closeSelectModal(event) {
