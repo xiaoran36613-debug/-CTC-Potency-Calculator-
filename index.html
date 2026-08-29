@@ -719,6 +719,50 @@
 
         .clear-history button:hover { color: #f44336; }
 
+        /* ===== 使用说明 ===== */
+        .usage-section {
+            margin-top: 18px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--input-bg);
+            overflow: hidden;
+        }
+
+        .usage-section summary {
+            padding: 12px 14px;
+            color: var(--primary-dark);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            list-style: none;
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .usage-section summary::-webkit-details-marker { display: none; }
+        .usage-section summary::after { content: '▼'; float: right; font-size: 10px; transition: transform 0.2s; }
+        .usage-section[open] summary::after { transform: rotate(180deg); }
+
+        .usage-content {
+            padding: 0 14px 14px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .usage-content h4 {
+            margin: 2px 0 6px;
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+
+        .usage-content ol { padding-left: 20px; margin: 0 0 14px; }
+        .usage-content li { padding-left: 2px; margin-bottom: 3px; }
+        .usage-version { padding-top: 10px; border-top: 1px solid var(--border); }
+        .usage-version p { margin: 2px 0; }
+        .usage-version strong { color: var(--text-primary); }
+
         .footer {
             text-align: center;
             margin-top: 16px;
@@ -926,6 +970,28 @@
             <div id="historyList"></div>
             <div class="clear-history"><button onclick="clearHistory()">清空记录</button></div>
         </div>
+
+        <details class="usage-section">
+            <summary>📖 使用说明</summary>
+            <div class="usage-content">
+                <h4>使用说明</h4>
+                <ol>
+                    <li>输入吸光度</li>
+                    <li>选择对应的稀释倍数</li>
+                    <li>没有合适的稀释倍数时，可点击「自定义」</li>
+                    <li>查看计算结果</li>
+                    <li>更换标准曲线后，需要同步更新计算公式</li>
+                    <li>新曲线建议使用表格中保留更多小数位的完整公式，以减少计算误差</li>
+                    <li>更换公式或首次使用时，建议与人工计算结果进行复核</li>
+                </ol>
+                <div class="usage-version">
+                    <h4>关于此版本</h4>
+                    <p><strong>CTC Potency Calculator</strong></p>
+                    <p>版本：v1.2</p>
+                    <p>最后更新：2026/08/29</p>
+                </div>
+            </div>
+        </details>
 
         <div class="footer">标曲公式有效期到期后请及时更新</div>
     </div>
